@@ -63,7 +63,7 @@ class InstallationGuideDialog(QDialog):
             QMessageBox.information(
                 self,
                 "路径已设置",
-                f"已设置路径: {file_path}\n\n点击"重新检测"以验证。"
+                f"已设置路径: {file_path}\n\n点击\"重新检测\"以验证。"
             )
 
 
