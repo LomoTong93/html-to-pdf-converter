@@ -66,3 +66,14 @@ def test_validate_html_file_not_readable(tmp_path):
     assert "无法读取" in message
 
     html_file.chmod(0o644)
+
+
+def test_validate_html_file_is_directory(tmp_path):
+    """Test validation fails when path is a directory."""
+    directory = tmp_path / "subdir"
+    directory.mkdir()
+
+    is_valid, message = validate_html_file(directory)
+
+    assert is_valid is False
+    assert "不是文件" in message
