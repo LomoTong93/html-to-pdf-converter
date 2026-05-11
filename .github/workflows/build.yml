@@ -7,43 +7,35 @@ on:
   workflow_dispatch:  # 允許手動觸發
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install wkhtmltopdf
-      run: |
-        brew install wkhtmltopdf
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-build.txt
-
-    - name: Build macOS app
-      run: |
-        pyinstaller HTMLtoPDF.spec --clean --noconfirm
-
-    - name: Create DMG
-      run: |
-        hdiutil create -volname HTMLtoPDF -srcfolder dist/HTMLtoPDF.app -ov -format UDZO dist/HTMLtoPDF.dmg
-
-    - name: Upload macOS artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-build
-        path: |
-          dist/HTMLtoPDF.dmg
-          dist/HTMLtoPDF.app
-        retention-days: 7
+  # macOS build disabled - wkhtmltopdf not available via Homebrew in GitHub Actions
+  # Use local build script (build.sh) to create macOS .app and .dmg
+  # build-macos:
+  #   runs-on: macos-latest
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.11'
+  #   - name: Install wkhtmltopdf
+  #     run: brew install wkhtmltopdf
+  #   - name: Install dependencies
+  #     run: |
+  #       pip install -r requirements.txt
+  #       pip install -r requirements-build.txt
+  #   - name: Build macOS app
+  #     run: pyinstaller HTMLtoPDF.spec --clean --noconfirm
+  #   - name: Create DMG
+  #     run: hdiutil create -volname HTMLtoPDF -srcfolder dist/HTMLtoPDF.app -ov -format UDZO dist/HTMLtoPDF.dmg
+  #   - name: Upload macOS artifacts
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: macos-build
+  #       path: |
+  #         dist/HTMLtoPDF.dmg
+  #         dist/HTMLtoPDF.app
+  #       retention-days: 7
 
   build-windows:
     runs-on: windows-latest
@@ -93,17 +85,11 @@ jobs:
         retention-days: 7
 
   create-release:
-    needs: [build-macos, build-windows]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-    - name: Download macOS artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: macos-build
-        path: artifacts/macos
-
     - name: Download Windows artifacts
       uses: actions/download-artifact@v4
       with:
@@ -114,10 +100,24 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          artifacts/macos/HTMLtoPDF.dmg
           artifacts/windows/HTMLtoPDF-Windows.zip
         draft: false
         prerelease: false
         generate_release_notes: true
+        body: |
+          ## HTML to PDF Converter v${{ github.ref_name }}
+
+          ### Windows 版本
+          - ✅ HTMLtoPDF-Windows.zip - Windows 可執行文件（已內嵌 wkhtmltopdf）
+
+          ### macOS 版本
+          - macOS 版本需要本地構建（GitHub Actions 不支持 wkhtmltopdf）
+          - 請參考 BUILD.md 文件進行本地構建
+
+          ### 使用說明
+          1. 下載對應平台的壓縮包
+          2. 解壓縮
+          3. Windows: 運行 HTMLtoPDF.exe
+          4. macOS: 打開 HTMLtoPDF.app
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
