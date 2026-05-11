@@ -1,0 +1,123 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 當推送 v* 標籤時觸發（例如 v1.0.0）
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install wkhtmltopdf
+      run: |
+        brew install wkhtmltopdf
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-build.txt
+
+    - name: Build macOS app
+      run: |
+        pyinstaller HTMLtoPDF.spec --clean --noconfirm
+
+    - name: Create DMG
+      run: |
+        hdiutil create -volname HTMLtoPDF -srcfolder dist/HTMLtoPDF.app -ov -format UDZO dist/HTMLtoPDF.dmg
+
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
+        path: |
+          dist/HTMLtoPDF.dmg
+          dist/HTMLtoPDF.app
+        retention-days: 7
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install wkhtmltopdf
+      run: |
+        choco install wkhtmltopdf -y
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-build.txt
+
+    - name: Update Windows spec with wkhtmltopdf path
+      shell: pwsh
+      run: |
+        $wkPath = "C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+        $specContent = Get-Content HTMLtoPDF-windows.spec -Raw
+        $specContent = $specContent -replace "wkhtmltopdf-windows/bin/wkhtmltopdf.exe", $wkPath
+        $specContent = $specContent -replace "\\", "\\\\"
+        Set-Content HTMLtoPDF-windows.spec $specContent
+
+    - name: Build Windows executable
+      run: |
+        pyinstaller HTMLtoPDF-windows.spec --clean --noconfirm
+
+    - name: Create ZIP archive
+      shell: pwsh
+      run: |
+        Compress-Archive -Path dist\HTMLtoPDF\* -DestinationPath dist\HTMLtoPDF-Windows.zip
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          dist/HTMLtoPDF-Windows.zip
+        retention-days: 7
+
+  create-release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-build
+        path: artifacts/macos
+
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-build
+        path: artifacts/windows
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/macos/HTMLtoPDF.dmg
+          artifacts/windows/HTMLtoPDF-Windows.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
