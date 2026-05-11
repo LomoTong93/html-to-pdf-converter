@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Tuple, Optional
 
@@ -28,6 +29,13 @@ class ConverterEngine:
         """
         if custom_path and Path(custom_path).exists():
             return Path(custom_path)
+
+        # Check if running as PyInstaller bundle
+        if getattr(sys, 'frozen', False):
+            bundle_dir = Path(sys._MEIPASS)
+            bundled_path = bundle_dir / 'bin' / 'wkhtmltopdf'
+            if bundled_path.exists():
+                return bundled_path
 
         which_result = shutil.which('wkhtmltopdf')
         if which_result:
