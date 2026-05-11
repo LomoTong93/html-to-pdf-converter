@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from src.core.converter import ConverterEngine
@@ -90,3 +91,19 @@ def test_convert_single_subprocess_error(tmp_path):
 
     assert success is False
     assert "转换失败" in message
+
+
+def test_convert_single_timeout(tmp_path):
+    """Test conversion timeout after 60 seconds."""
+    html_file = tmp_path / "test.html"
+    html_file.write_text("<html><body>Test</body></html>")
+    pdf_file = tmp_path / "test.pdf"
+
+    engine = ConverterEngine()
+
+    with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('cmd', 60)):
+        with patch.object(engine, 'is_available', return_value=True):
+            success, message = engine.convert_single(html_file, pdf_file)
+
+    assert success is False
+    assert "超时" in message
