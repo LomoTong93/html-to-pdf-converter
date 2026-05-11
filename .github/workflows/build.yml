@@ -61,10 +61,9 @@ jobs:
     - name: Update Windows spec with wkhtmltopdf path
       shell: pwsh
       run: |
-        $wkPath = "C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+        $wkPath = "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
         $specContent = Get-Content HTMLtoPDF-windows.spec -Raw
         $specContent = $specContent -replace "wkhtmltopdf-windows/bin/wkhtmltopdf.exe", $wkPath
-        $specContent = $specContent -replace "\\", "\\\\"
         Set-Content HTMLtoPDF-windows.spec $specContent
 
     - name: Build Windows executable
